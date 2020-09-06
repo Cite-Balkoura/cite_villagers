@@ -1,0 +1,18 @@
+name: Cite-villagers
+author: MileKat
+main: fr.milekat.cite_villagers.MainVillager
+version: '1.0'
+api-version: '1.15'
+description: plugin gestion PNJ par MileKat
+depend: [Cite-core, Citizens]
+commands:
+  trade:
+    usage: "/trade <on/off/refresh>"
+    permission: modo.trade
+    permission-message: "&cVous n'avez pas la permission d'utiliser cette commande."
+    description: "Commande de modération"
+  jedis:
+    usage: "/jedis"
+    permission: admin.jedis
+    permission-message: "&cVous n'avez pas la permission d'utiliser cette commande."
+    description: "Commande de débug"

@@ -3,7 +3,7 @@ package fr.milekat.cite_villagers.events;
 import fr.milekat.cite_core.MainCore;
 import fr.milekat.cite_core.core.engines.TeamEngine;
 import fr.milekat.cite_core.core.obj.Team;
-import fr.milekat.cite_core.utils_tools.DateMilekat;
+import fr.milekat.cite_libs.utils_tools.DateMilekat;
 import fr.milekat.cite_villagers.MainVillager;
 import fr.milekat.cite_villagers.utils.VillagerTradeListener;
 import net.citizensnpcs.api.event.NPCRightClickEvent;
@@ -42,7 +42,7 @@ public class PlayerTrade implements Listener {
                 "WHERE `mat_1` = (SELECT `item_id` FROM `" + MainCore.SQLPREFIX + "trade_material_liste` " +
                 "WHERE `Material` = '" + event.getRecipe().getIngredients().get(0).getType().toString() + "') " +
                 "AND qt_1 = '" + event.getRecipe().getIngredients().get(0).getAmount() + "') as trade_id;";
-        Connection connection = MainCore.sql.getConnection();
+        Connection connection = MainCore.getSQL().getConnection();
         PreparedStatement q = connection.prepareStatement(query);
         q.execute();
         if (q.getResultSet().last() && q.getResultSet().getInt("trade_id")>0) {

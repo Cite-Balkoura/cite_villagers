@@ -16,7 +16,6 @@ import static fr.milekat.cite_villagers.engine.Refresh.setLockTrade;
 public class MainVillager extends JavaPlugin {
     // Init des var static, pour tous le projet
     public static String prefixConsole = "[Balkoura-villageois] ";
-    public static boolean jedisDebug;
     public static boolean manuLockTrades;
     public static boolean autoLockTrades;
     public static HashMap<Integer, List<MerchantRecipe>> tradesLists = new HashMap<>();
@@ -25,8 +24,8 @@ public class MainVillager extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        this.getConfig();
-        jedisDebug = this.getConfig().getBoolean("redis.debug");
+        autoLockTrades = false;
+        manuLockTrades = false;
         mainVillager = this;
         // SQL
         // Events
@@ -37,11 +36,7 @@ public class MainVillager extends JavaPlugin {
         //  Tab
         getCommand("trade").setTabCompleter(new TradeTab());
         // Engine
-        setLockTrade();
         new Refresh().Trade();
-        new Refresh().resetTrades();
-        autoLockTrades = false;
-        manuLockTrades = false;
     }
 
     @Override

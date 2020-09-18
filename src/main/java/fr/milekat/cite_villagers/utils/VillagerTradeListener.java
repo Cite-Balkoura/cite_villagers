@@ -15,7 +15,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.*;
 
-import fr.milekat.cite_core.utils_tools.Tools;
+import fr.milekat.cite_libs.utils_tools.Tools;
 
 public class VillagerTradeListener implements Listener {
 

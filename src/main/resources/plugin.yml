@@ -4,7 +4,7 @@ main: fr.milekat.cite_villagers.MainVillager
 version: '1.0'
 api-version: '1.15'
 description: plugin gestion PNJ par MileKat
-depend: [Cite-core, Citizens]
+depend: [Cite-libs, Cite-core, Citizens]
 commands:
   trade:
     usage: "/trade <on/off/refresh>"

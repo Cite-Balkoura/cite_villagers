@@ -1,31 +1,30 @@
 package fr.milekat.cite_villagers.engine;
 
 import fr.milekat.cite_core.MainCore;
-import fr.milekat.cite_core.utils_tools.DateMilekat;
+import fr.milekat.cite_libs.utils_tools.DateMilekat;
 import fr.milekat.cite_villagers.MainVillager;
+import net.citizensnpcs.api.CitizensAPI;
+import net.citizensnpcs.api.npc.NPC;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryType;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.MerchantRecipe;
-import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 public class Refresh {
-    private int hour;
-    private int lasthour;
+    private int lastDayOfWeek = 10;
     private final MainVillager mainVillager = MainVillager.getInstance();
 
     /**
@@ -35,17 +34,19 @@ public class Refresh {
         new BukkitRunnable() {
             @Override
             public void run() {
-                double mcTime = Objects.requireNonNull(Bukkit.getServer().getWorld("world")).getTime();
-                mcTime = mcTime/1000;
-                hour = (int) mcTime;
-                if (hour!=lasthour && hour==18) {
+                Calendar calendar = Calendar.getInstance();
+                calendar.setTime(new Date());
+                int currentDayOfWeek = calendar.get(Calendar.DAY_OF_WEEK);
+                if (currentDayOfWeek!=lastDayOfWeek) {
                     Bukkit.getScheduler().runTask(mainVillager, Refresh::setLockTrade);
+                    Bukkit.getScheduler().runTask(mainVillager, () -> updateBlackMarketPos(currentDayOfWeek));
                     //updateBourse(); -> Non conservé pour la prochaine cité.
                     resetTrades();
-                } else MainVillager.autoLockTrades = hour == 18;
-                lasthour = hour;
+                    MainVillager.autoLockTrades = false;
+                }
+                lastDayOfWeek = currentDayOfWeek;
             }
-        }.runTaskTimerAsynchronously(mainVillager,0,20);
+        }.runTaskTimerAsynchronously(mainVillager,0,600);
     }
 
     /**
@@ -163,7 +164,7 @@ public class Refresh {
      *      Re-paramettre tous les trades par rapport au valeurs SQL !
      */
     public void resetTrades(){
-        Connection connection = MainCore.sql.getConnection();
+        Connection connection = MainCore.getSQL().getConnection();
         Bukkit.getLogger().info(MainVillager.prefixConsole + "mise à jour des échanges en cours...");
         try {
             // Récup des trades normaux
@@ -206,7 +207,7 @@ public class Refresh {
      * @return query avec tous les trades
      */
     private PreparedStatement getNPCTrades(String npc_trigger) {
-        Connection connection = MainCore.sql.getConnection();
+        Connection connection = MainCore.getSQL().getConnection();
         try {
             PreparedStatement q = connection.prepareStatement("SELECT " +
                     "trade_id, " +
@@ -272,6 +273,36 @@ public class Refresh {
                     , q.getResultSet().getInt("qt_2")));
         }
         return recipe;
+    }
+
+    /**
+     *      Téléporte le NPC#ID:1 à la pos du jour
+     */
+    @SuppressWarnings("deprecation")
+    private static void updateBlackMarketPos(int currentDayOfWeek) {
+        Connection connection = MainCore.getSQL().getConnection();
+        try {
+            PreparedStatement q = connection.prepareStatement("SELECT " +
+                    "`pos`, `TEXTURE_PROPERTIES`, `TEXTURE_PROPERTIES_SIGN` " +
+                    "FROM `balkoura_blackmarket` WHERE `day` = ?;");
+            q.setInt(1, currentDayOfWeek);
+            q.execute();
+            q.getResultSet().last();
+            int[] rawpos =  Arrays.stream(q.getResultSet().getString("pos").split(";"))
+                    .mapToInt(Integer::parseInt)
+                    .toArray();
+            NPC npc = CitizensAPI.getNPCRegistry().getById(1);
+            npc.data().setPersistent(NPC.PLAYER_SKIN_TEXTURE_PROPERTIES_METADATA,
+                    q.getResultSet().getString("TEXTURE_PROPERTIES"));
+            npc.data().setPersistent(NPC.PLAYER_SKIN_TEXTURE_PROPERTIES_SIGN_METADATA,
+                    q.getResultSet().getString("TEXTURE_PROPERTIES_SIGN"));
+            npc.teleport(new Location(Bukkit.getWorld("world"),rawpos[0],rawpos[1],rawpos[2],rawpos[3],rawpos[4]),
+                    PlayerTeleportEvent.TeleportCause.PLUGIN);
+            q.close();
+        } catch (SQLException | NullPointerException throwables) {
+            Bukkit.getLogger().warning(MainVillager.prefixConsole + "Erreur lors de l'update de la pos BlackMarket.");
+            throwables.printStackTrace();
+        }
     }
 
     /**

@@ -2,20 +2,16 @@ package fr.milekat.cite_villagers.engine;
 
 import fr.milekat.cite_core.MainCore;
 import fr.milekat.cite_libs.utils_tools.DateMilekat;
+import fr.milekat.cite_libs.utils_tools.ItemParser;
 import fr.milekat.cite_villagers.MainVillager;
 import net.citizensnpcs.api.CitizensAPI;
 import net.citizensnpcs.api.npc.NPC;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
-import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerTeleportEvent;
-import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.MerchantRecipe;
-import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.sql.Connection;
@@ -211,26 +207,26 @@ public class Refresh {
         try {
             PreparedStatement q = connection.prepareStatement("SELECT " +
                     "trade_id, " +
-                    "mat_1.Material as 1_item, " +
-                    "mat_1.Name as 1_name, " +
-                    "mat_1.Enchantment as 1_ench, " +
-                    "mat_1.Lore as 1_lore, " +
+                    "mat_1.material as 1_item, " +
+                    "mat_1.name as 1_name, " +
+                    "mat_1.enchantment as 1_ench, " +
+                    "mat_1.lore as 1_lore, " +
                     "qt_1, " +
-                    "mat_2.Material as 2_item, " +
-                    "mat_2.Name as 2_name, " +
-                    "mat_2.Enchantment as 2_ench, " +
-                    "mat_2.Lore as 2_lore, " +
+                    "mat_2.material as 2_item, " +
+                    "mat_2.name as 2_name, " +
+                    "mat_2.enchantment as 2_ench, " +
+                    "mat_2.lore as 2_lore, " +
                     "qt_2, " +
-                    "mat_r.Material as r_item, " +
-                    "mat_r.Name as r_name, " +
-                    "mat_r.Enchantment as r_ench, " +
-                    "mat_r.Lore as r_lore, " +
+                    "mat_r.material as r_item, " +
+                    "mat_r.name as r_name, " +
+                    "mat_r.enchantment as r_ench, " +
+                    "mat_r.lore as r_lore, " +
                     "qt_r, " +
                     "max_uses " +
                     "FROM `" + MainCore.SQLPREFIX + "trade_liste` trade " +
-                    "LEFT JOIN `" + MainCore.SQLPREFIX + "trade_material_liste` mat_1 ON trade.mat_1 = mat_1.item_id " +
-                    "LEFT JOIN `" + MainCore.SQLPREFIX + "trade_material_liste` mat_2 ON trade.mat_2 = mat_2.item_id " +
-                    "LEFT JOIN `" + MainCore.SQLPREFIX + "trade_material_liste` mat_r ON trade.mat_r = mat_r.item_id " +
+                    "LEFT JOIN `" + MainCore.SQLPREFIX + "material_liste` mat_1 ON trade.mat_1 = mat_1.item_id " +
+                    "LEFT JOIN `" + MainCore.SQLPREFIX + "material_liste` mat_2 ON trade.mat_2 = mat_2.item_id " +
+                    "LEFT JOIN `" + MainCore.SQLPREFIX + "material_liste` mat_r ON trade.mat_r = mat_r.item_id " +
                     "WHERE trade.trade_trigger = ?;");
             if (npc_trigger==null) {
                 return null;
@@ -253,20 +249,20 @@ public class Refresh {
     private MerchantRecipe setTrading(PreparedStatement q) throws SQLException {
         if (q==null) return null;
         MerchantRecipe recipe = new MerchantRecipe(
-                setItem(q.getResultSet().getString("r_item")
+                ItemParser.setItem(q.getResultSet().getString("r_item")
                         , q.getResultSet().getString("r_name")
                         , q.getResultSet().getString("r_ench")
                         , q.getResultSet().getString("r_lore")
                         , q.getResultSet().getInt("qt_r"))
                         , q.getResultSet().getInt("max_uses"));
         recipe.addIngredient(
-                setItem(q.getResultSet().getString("1_item")
+                ItemParser.setItem(q.getResultSet().getString("1_item")
                         , q.getResultSet().getString("1_name")
                         , q.getResultSet().getString("1_ench")
                         , q.getResultSet().getString("1_lore")
                         , q.getResultSet().getInt("qt_1")));
         if (q.getResultSet().getString("qt_2") != null) {
-            recipe.addIngredient(setItem(q.getResultSet().getString("2_item")
+            recipe.addIngredient(ItemParser.setItem(q.getResultSet().getString("2_item")
                     , q.getResultSet().getString("2_name")
                     , q.getResultSet().getString("2_ench")
                     , q.getResultSet().getString("2_lore")
@@ -303,31 +299,5 @@ public class Refresh {
             Bukkit.getLogger().warning(MainVillager.prefixConsole + "Erreur lors de l'update de la pos BlackMarket.");
             throwables.printStackTrace();
         }
-    }
-
-    /**
-     *      Mini-lib pour définir les items plus simplement !
-     */
-    private ItemStack setItem(String material, String name,String enchant, String lore, int amount){
-        ItemStack item = new ItemStack(Material.valueOf(material),amount);
-        ItemMeta data = item.getItemMeta();
-        if (data==null) return item;
-        if (name!=null){
-            data.setDisplayName(name);
-        }
-        if (enchant!=null){
-            String[] enchants = enchant.split(",");
-            for (int i=1;i<=enchants.length;i++){
-                String[] ench = enchants[i-1].split(":");
-                data.addEnchant(Objects.requireNonNull(Enchantment.getByKey(NamespacedKey.minecraft(ench[0].toLowerCase()))),
-                        Integer.parseInt(ench[1]),true);
-            }
-        }
-        if (lore!=null){
-            List<String> lores = Arrays.asList(lore.split("%nl%"));
-            data.setLore(lores);
-        }
-        item.setItemMeta(data);
-        return item;
     }
 }

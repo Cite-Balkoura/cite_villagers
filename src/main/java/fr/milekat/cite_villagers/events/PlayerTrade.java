@@ -33,13 +33,13 @@ public class PlayerTrade implements Listener {
             query = query + " ((SELECT `player_id` FROM `" + MainCore.SQLPREFIX + "player` WHERE `uuid` = '" +
                     event.getPlayer().getUniqueId() + "'), (SELECT `trade_id` FROM `" + MainCore.SQLPREFIX +
                     "trade_liste` WHERE `mat_1` = (SELECT `item_id` FROM `" + MainCore.SQLPREFIX +
-                    "trade_material_liste` WHERE `Material` = '" + event.getRecipe().getIngredients().get(0).getType().toString() +
+                    "material_liste` WHERE `Material` = '" + event.getRecipe().getIngredients().get(0).getType().toString() +
                     "') AND qt_1 = '" + event.getRecipe().getIngredients().get(0).getAmount() + "'), " +
                     "'" + event.getRecipe().getResult().getAmount() + "', '"+ DateMilekat.setDateNow() +"'),";
         }
         query = query.substring(0,query.length()-1) + " RETURNING " +
                 "(SELECT `trade_id` FROM `" + MainCore.SQLPREFIX + "trade_liste` " +
-                "WHERE `mat_1` = (SELECT `item_id` FROM `" + MainCore.SQLPREFIX + "trade_material_liste` " +
+                "WHERE `mat_1` = (SELECT `item_id` FROM `" + MainCore.SQLPREFIX + "material_liste` " +
                 "WHERE `Material` = '" + event.getRecipe().getIngredients().get(0).getType().toString() + "') " +
                 "AND qt_1 = '" + event.getRecipe().getIngredients().get(0).getAmount() + "') as trade_id;";
         Connection connection = MainCore.getSQL().getConnection();

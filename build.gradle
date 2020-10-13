@@ -14,6 +14,8 @@ repositories {
     maven { url = 'https://jitpack.io' }
 }
 
+compileJava.options.encoding = 'UTF-8'
+
 jar {
     manifest {
         attributes "Main-Class": "fr.milekat.cite_villagers.MainVillager"

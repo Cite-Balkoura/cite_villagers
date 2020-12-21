@@ -3,6 +3,7 @@ package fr.milekat.cite_villagers.events;
 import fr.milekat.cite_core.MainCore;
 import fr.milekat.cite_core.core.engines.TeamEngine;
 import fr.milekat.cite_core.core.obj.Team;
+import fr.milekat.cite_libs.MainLibs;
 import fr.milekat.cite_libs.utils_tools.DateMilekat;
 import fr.milekat.cite_villagers.MainVillager;
 import fr.milekat.cite_villagers.utils.VillagerTradeListener;
@@ -17,6 +18,7 @@ import org.bukkit.inventory.MerchantRecipe;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
@@ -28,22 +30,17 @@ public class PlayerTrade implements Listener {
             event.setCancelled(true);
             return;
         }
-        String query = "INSERT INTO `" + MainCore.SQLPREFIX + "trade_log`(`player_id`, `trade_id`, `emeraudes`, `date`) VALUES";
+        StringBuilder query = new StringBuilder("INSERT INTO `" + MainCore.SQLPREFIX + "trade_log`(`player_id`, `trade_id`, `emeraudes`, `date`) VALUES");
         for (int i=1;i<=event.getOrders();i++){
-            query = query + " ((SELECT `player_id` FROM `" + MainCore.SQLPREFIX + "player` WHERE `uuid` = '" +
-                    event.getPlayer().getUniqueId() + "'), (SELECT `trade_id` FROM `" + MainCore.SQLPREFIX +
-                    "trade_liste` WHERE `mat_1` = (SELECT `item_id` FROM `" + MainCore.SQLPREFIX +
-                    "material_liste` WHERE `Material` = '" + event.getRecipe().getIngredients().get(0).getType().toString() +
-                    "') AND qt_1 = '" + event.getRecipe().getIngredients().get(0).getAmount() + "'), " +
-                    "'" + event.getRecipe().getResult().getAmount() + "', '"+ DateMilekat.setDateNow() +"'),";
+            query.append(" ((SELECT `player_id` FROM `").append(MainCore.SQLPREFIX).append("player` WHERE `uuid` = '").append(event.getPlayer().getUniqueId()).append("'), (SELECT `trade_id` FROM `").append(MainCore.SQLPREFIX).append("trade_liste` WHERE `mat_1` = (SELECT `item_id` FROM `").append(MainCore.SQLPREFIX).append("material_liste` WHERE `Material` = '").append(event.getRecipe().getIngredients().get(0).getType().toString()).append("') AND qt_1 = '").append(event.getRecipe().getIngredients().get(0).getAmount()).append("'), ").append("'").append(event.getRecipe().getResult().getAmount()).append("', '").append(DateMilekat.setDateNow()).append("'),");
         }
-        query = query.substring(0,query.length()-1) + " RETURNING " +
+        query = new StringBuilder(query.substring(0, query.length() - 1) + " RETURNING " +
                 "(SELECT `trade_id` FROM `" + MainCore.SQLPREFIX + "trade_liste` " +
                 "WHERE `mat_1` = (SELECT `item_id` FROM `" + MainCore.SQLPREFIX + "material_liste` " +
                 "WHERE `Material` = '" + event.getRecipe().getIngredients().get(0).getType().toString() + "') " +
-                "AND qt_1 = '" + event.getRecipe().getIngredients().get(0).getAmount() + "') as trade_id;";
-        Connection connection = MainCore.getSQL().getConnection();
-        PreparedStatement q = connection.prepareStatement(query);
+                "AND qt_1 = '" + event.getRecipe().getIngredients().get(0).getAmount() + "') as trade_id;");
+        Connection connection = MainLibs.getSql();
+        PreparedStatement q = connection.prepareStatement(query.toString());
         q.execute();
         if (q.getResultSet().last() && q.getResultSet().getInt("trade_id")>0) {
             int trade_id = q.getResultSet().getInt("trade_id");
@@ -81,7 +78,16 @@ public class PlayerTrade implements Listener {
                 return;
             }
             Merchant merchant = Bukkit.createMerchant(event.getNPC().getName());
-            merchant.setRecipes(MainVillager.tradesLists.get(event.getNPC().getId()));
+            List<MerchantRecipe> recipes = new ArrayList<>();
+            for (MerchantRecipe recipe: MainVillager.tradesLists.get(event.getNPC().getId())) {
+                recipe.setUses(0);
+                MerchantRecipe recipe1 = new MerchantRecipe(recipe.getResult().clone(), 100000);
+                recipe1.setExperienceReward(false);
+                recipe1.setIngredients(recipe.getIngredients());
+                recipe1.setUses(0);
+                recipes.add(recipe1);
+            }
+            merchant.setRecipes(recipes);
             event.getClicker().openMerchant(merchant, true);
         }
     }

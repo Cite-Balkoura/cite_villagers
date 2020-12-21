@@ -1,5 +1,6 @@
 package fr.milekat.cite_villagers.utils;
 
+import fr.milekat.cite_libs.utils_tools.Tools;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -14,8 +15,6 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.*;
-
-import fr.milekat.cite_libs.utils_tools.Tools;
 
 public class VillagerTradeListener implements Listener {
 

@@ -1,6 +1,7 @@
 package fr.milekat.cite_villagers.engine;
 
 import fr.milekat.cite_core.MainCore;
+import fr.milekat.cite_libs.MainLibs;
 import fr.milekat.cite_libs.utils_tools.DateMilekat;
 import fr.milekat.cite_libs.utils_tools.ItemParser;
 import fr.milekat.cite_villagers.MainVillager;
@@ -34,11 +35,13 @@ public class Refresh {
                 calendar.setTime(new Date());
                 int currentDayOfWeek = calendar.get(Calendar.DAY_OF_WEEK);
                 if (currentDayOfWeek!=lastDayOfWeek) {
-                    Bukkit.getScheduler().runTask(mainVillager, Refresh::setLockTrade);
-                    Bukkit.getScheduler().runTask(mainVillager, () -> updateBlackMarketPos(currentDayOfWeek));
+                    Bukkit.getScheduler().runTask(mainVillager, () -> {
+                        setLockTrade();
+                        updateBlackMarketPos(currentDayOfWeek);
+                        resetTrades();
+                        MainVillager.autoLockTrades = false;
+                    });
                     //updateBourse(); -> Non conservé pour la prochaine cité.
-                    resetTrades();
-                    MainVillager.autoLockTrades = false;
                 }
                 lastDayOfWeek = currentDayOfWeek;
             }
@@ -57,110 +60,11 @@ public class Refresh {
         }
     }
 
-    /*
-    public void updateBourse(){
-        Connection connection = MainCore.sql.getConnection();
-        try {
-            PreparedStatement q = connection.prepareStatement("SELECT q1.moyenneprX2, q2.total_trades FROM " +
-                    "(SELECT AVG(prDesventes) as moyenneprX2 FROM (SELECT (SUM(`emeraudes`)*100/(SELECT SUM(`emeraudes`) " +
-                    "FROM `" + MainCore.SQLPREFIX + "trade_log` WHERE `emeraudes` != 0)) as prDesventes " +
-                    "FROM `" + MainCore.SQLPREFIX + "trade_log` WHERE `emeraudes` != 0 GROUP BY `trade_id`) as a) as q1, " +
-                    "(SELECT COUNT(`trade_id`) as total_trades " +
-                    "FROM `" + MainCore.SQLPREFIX + "trade_log` WHERE `emeraudes` != 0) as q2 WHERE 1;");
-            q.execute();
-            q.getResultSet().last();
-            float moyenneprX2 = q.getResultSet().getFloat("moyenneprX2")/100*2;
-            float trade_idCount = q.getResultSet().getFloat("total_trades");
-            q.close();
-            q = connection.prepareStatement("SELECT `trade_id`, SUM(`emeraudes`) as totE, " +
-                    "(SUM(emeraudes)*100/(SELECT SUM(`emeraudes`) FROM `" + MainCore.SQLPREFIX +
-                    "trade_log` WHERE `emeraudes` != 0)) as prEm FROM `" + MainCore.SQLPREFIX +
-                    "trade_log` WHERE `emeraudes` != 0 GROUP BY `trade_id` ORDER BY totE DESC;");
-            q.execute();
-            HashMap<Integer,Float> prGlissant20final = new HashMap<>();
-            while ((q.getResultSet().next())){
-                // % calculé sur les émeraudes
-                float prEmX2 = q.getResultSet().getFloat("prEm")/100 * 2f;
-                float prEmGlissant100;
-                if (moyenneprX2/2f-prEmX2<0f){
-                    prEmGlissant100 = prEmX2*2f;
-                } else {
-                    prEmGlissant100 = moyenneprX2/2f-(1f-prEmX2);
-                }
-                float prEmGlissant50 = (prEmGlissant100/2)*-1f;
-                // % calculé sur le rang
-                float rang = (float) q.getResultSet().getRow();
-                float prRang = rang / trade_idCount;
-                float prRangX2 = prRang*2f;
-                float prRangGlissant100 = 1f-prRangX2;
-                float prRangGlissant50 = (prRangGlissant100/2f)*-1f;
-                // Somme des %
-                float prSomme50 = (prEmGlissant50+prRangGlissant50)/2f;
-                float truquageNegatif;
-                if (prSomme50/2.5f<0f){
-                    truquageNegatif = 1.3f;
-                } else {
-                    truquageNegatif = 1f;
-                }
-                float prGlissant20 = truquageNegatif*prSomme50/2.5f;
-                if (prGlissant20>0.2f){
-                    prGlissant20final.put(q.getResultSet().getInt("trade_id"),0.2f);
-                } else prGlissant20final.put(q.getResultSet().getInt("trade_id"), Math.max(prGlissant20, -0.2f));
-            }
-            q.close();
-            q = connection.prepareStatement("SELECT `trade_id`, `bourse_selecter`, `qt_1`, `qt_2`, `qt_r` FROM `"
-                            + MainCore.SQLPREFIX + "trade_liste`;");
-            q.execute();
-            while (q.getResultSet().next()) {
-                if (prGlissant20final.containsKey(q.getResultSet().getInt("trade_id"))) {
-                    int trade_id = q.getResultSet().getInt("trade_id");
-                    PreparedStatement qUpdate = connection.prepareStatement("UPDATE `" + MainCore.SQLPREFIX +
-                            "trade_liste` SET `qt_1_day`=?,`qt_2_day`=?,`qt_r_day`=? WHERE `trade_id` = ?;");
-                    if (q.getResultSet().getBoolean("bourse_selecter")) {
-                        // Update du result
-                        qUpdate.setNull(1, Types.INTEGER);
-                        qUpdate.setNull(2, Types.INTEGER);
-                        int qt_r = Math.round(q.getResultSet().getFloat("qt_r") * (1f + prGlissant20final.get(trade_id)));
-                        if (qt_r<1){
-                            qt_r =1;
-                        }
-                        qUpdate.setInt(3, qt_r);
-                    } else {
-                        // Update du qt_1 & qt_2 si non null
-                        int qt_1 = Math.round(q.getResultSet().getFloat("qt_1") * (1f - prGlissant20final.get(trade_id)));
-                        if (qt_1<1){
-                            qt_1 =1;
-                        }
-                        qUpdate.setInt(1, qt_1);
-                        qUpdate.setNull(3, Types.INTEGER);
-                        if (q.getResultSet().getString("qt_2") == null) {
-                            qUpdate.setNull(2, Types.INTEGER);
-                        } else {
-                            // + qt_2 (non null)
-                            int qt_2 = Math.round(q.getResultSet().getFloat("qt_2") * (1f - prGlissant20final.get(trade_id)));
-                            if (qt_2<1){
-                                qt_2 =1;
-                            }
-                            qUpdate.setInt(2, qt_2);
-                        }
-                    }
-                    qUpdate.setInt(4, trade_id);
-                    qUpdate.execute();
-                    qUpdate.close();
-                }
-            }
-            q.close();
-        } catch (SQLException e) {
-            Bukkit.getLogger().warning(MainVillager.prefixConsole + "Update bourse en erreur : " + e);
-            e.printStackTrace();
-        }
-    }*/
-
     /**
      *      Re-paramettre tous les trades par rapport au valeurs SQL !
      */
     public void resetTrades(){
-        Connection connection = MainCore.getSQL().getConnection();
+        Connection connection = MainLibs.getSql();
         Bukkit.getLogger().info(MainVillager.prefixConsole + "mise à jour des échanges en cours...");
         try {
             // Récup des trades normaux
@@ -203,7 +107,7 @@ public class Refresh {
      * @return query avec tous les trades
      */
     private PreparedStatement getNPCTrades(String npc_trigger) {
-        Connection connection = MainCore.getSQL().getConnection();
+        Connection connection = MainLibs.getSql();
         try {
             PreparedStatement q = connection.prepareStatement("SELECT " +
                     "trade_id, " +
@@ -276,7 +180,7 @@ public class Refresh {
      */
     @SuppressWarnings("deprecation")
     private static void updateBlackMarketPos(int currentDayOfWeek) {
-        Connection connection = MainCore.getSQL().getConnection();
+        Connection connection = MainLibs.getSql();
         try {
             PreparedStatement q = connection.prepareStatement("SELECT " +
                     "`pos`, `TEXTURE_PROPERTIES`, `TEXTURE_PROPERTIES_SIGN` " +
